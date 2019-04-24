@@ -10,13 +10,13 @@ import imutils
 import cv2
 
 # construct the argument parse and parse the arguments
-ap = argparse.ArgumentParser()
-ap.add_argument("-i", "--image", required=True,
-	help="path to the input image")
-args = vars(ap.parse_args())
+# ap = argparse.ArgumentParser()
+# ap.add_argument("-i", "--image", required=True,
+# 	help="path to the input image")
+# args = vars(ap.parse_args())
 
 # load the image
-image = cv2.imread(args["image"])
+image = cv2.imread('images/pad7.jpg')
 
 # TESTING
 # rotate the image
@@ -50,7 +50,6 @@ gray = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
 blurred = cv2.GaussianBlur(gray, (5, 5), 0)
 edged = cv2.Canny(blurred, 75, 200)
 
-
 # For testing
 # cv2.imshow("Resized", edged)
 # cv2.waitKey(0)
@@ -58,27 +57,27 @@ edged = cv2.Canny(blurred, 75, 200)
 # find contours in the edge map, then initialize
 # the contour that corresponds to the document
 cnts = cv2.findContours(edged.copy(), cv2.RETR_EXTERNAL,
-	cv2.CHAIN_APPROX_SIMPLE)
+                        cv2.CHAIN_APPROX_SIMPLE)
 cnts = imutils.grab_contours(cnts)
 docCnt = None
 
 # ensure that at least one contour was found
 if len(cnts) > 0:
-	# sort the contours according to their size in
-	# descending order
-	cnts = sorted(cnts, key=cv2.contourArea, reverse=True)
+    # sort the contours according to their size in
+    # descending order
+    cnts = sorted(cnts, key=cv2.contourArea, reverse=True)
 
-	# loop over the sorted contours
-	for c in cnts:
-		# approximate the contour
-		peri = cv2.arcLength(c, True)
-		approx = cv2.approxPolyDP(c, 0.02 * peri, True)
+    # loop over the sorted contours
+    for c in cnts:
+        # approximate the contour
+        peri = cv2.arcLength(c, True)
+        approx = cv2.approxPolyDP(c, 0.02 * peri, True)
 
-		# if our approximated contour has four points,
-		# then we can assume we have found the paper
-		if len(approx) == 4:
-			docCnt = approx
-			break
+        # if our approximated contour has four points,
+        # then we can assume we have found the paper
+        if len(approx) == 4:
+            docCnt = approx
+            break
 
 # apply a four point perspective transform to both the
 # original image and grayscale image to obtain a top-down
@@ -94,7 +93,7 @@ warped = four_point_transform(gray, docCnt.reshape(4, 2))
 # apply Otsu's thresholding method to binarize the warped
 # piece of paper
 thresh = cv2.threshold(warped, 0, 255,
-	cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
+                       cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
 
 # For testing
 # cv2.imshow("Otsu", thresh)
@@ -103,74 +102,89 @@ thresh = cv2.threshold(warped, 0, 255,
 # find contours in the thresholded image, then initialize
 # the list of contours that correspond to wells
 cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
-	cv2.CHAIN_APPROX_SIMPLE)
+                        cv2.CHAIN_APPROX_SIMPLE)
 cnts = imutils.grab_contours(cnts)
 
-wellCnts = []
 new_paper = paper.copy()
 
 # loop over the contours
 for c in cnts:
-	# Find the contour that is the box (used to rotate paper if necessary)
-	# approximate the contour
-	peri = cv2.arcLength(c, True)
-	approx = cv2.approxPolyDP(c, 0.02 * peri, True)
-	# compute the bounding box of the contour, then use the
-	# bounding box to derive the aspect ratio
-	(x, y, w, h) = cv2.boundingRect(c)
-	ar = w / float(h)
+    # Find the contour that is the box (used to rotate paper if necessary)
+    # approximate the contour
+    peri = cv2.arcLength(c, True)
+    approx = cv2.approxPolyDP(c, 0.02 * peri, True)
+    # compute the bounding box of the contour, then use the
+    # bounding box to derive the aspect ratio
+    (x, y, w, h) = cv2.boundingRect(c)
+    ar = w / float(h)
 
-	# if our approximated contour has four points,
-	# then we can assume we have found the box
-	if len(approx) == 4:
-		docCnt = approx
-		cv2.drawContours(new_paper, [c], -1, 255, 3)
-		# rotate image until box is at bottom of image
+    # if our approximated contour has four points,
+    # then we can assume we have found the box
+    if len(approx) == 4:
+        docCnt = approx
+        cv2.drawContours(new_paper, [c], -1, 255, 3)
+        # rotate image until box is at bottom of image
 
-		# grab the dimensions of the image and calculate the center
-		# of the image
-		(h, w) = thresh.shape[:2]
-		center = (w / 2, h / 2)
+        # grab the dimensions of the image and calculate the center
+        # of the image
+        (h, w) = thresh.shape[:2]
+        center = (w / 2, h / 2)
 
-		# box is at top of image
-		if center[1]-y > 150:
-			# rotate the image by 180 degrees
-			M = cv2.getRotationMatrix2D(center, 180, 1.0)
-			thresh = cv2.warpAffine(thresh, M, (w, h))
-			new_paper = cv2.warpAffine(new_paper, M, (w, h))
-			warped = cv2.warpAffine(warped, M, (w, h))
+        # box is at top of image
+        if center[1] - y > 150:
+            # rotate the image by 180 degrees
+            M = cv2.getRotationMatrix2D(center, 180, 1.0)
+            thresh = cv2.warpAffine(thresh, M, (w, h))
+            new_paper = cv2.warpAffine(new_paper, M, (w, h))
+            warped = cv2.warpAffine(warped, M, (w, h))
 
-		# box is at right of image
-		elif x - center[0] > 150:
-			# rotate the image by 90 degrees
-			M = cv2.getRotationMatrix2D(center, 90, 1.0)
-			thresh = cv2.warpAffine(thresh, M, (w, h))
-			new_paper = cv2.warpAffine(new_paper, M, (w, h))
-			warped = cv2.warpAffine(warped, M, (w, h))
+        # box is at right of image
+        elif x - center[0] > 150:
+            # rotate the image by 90 degrees
+            M = cv2.getRotationMatrix2D(center, 270, 1.0)
+            thresh = cv2.warpAffine(thresh, M, (w, h))
+            new_paper = cv2.warpAffine(new_paper, M, (w, h))
+            warped = cv2.warpAffine(warped, M, (w, h))
 
-		# box is at left of image
-		elif center[0] - x > 150:
-			# rotate the image by 270 degrees
-			M = cv2.getRotationMatrix2D(center, 270, 1.0)
-			thresh = cv2.warpAffine(thresh, M, (w, h))
-			new_paper = cv2.warpAffine(new_paper, M, (w, h))
-			warped = cv2.warpAffine(warped, M, (w, h))
+        # box is at left of image
+        elif center[0] - x > 150:
+            # rotate the image by 270 degrees
+            M = cv2.getRotationMatrix2D(center, 90, 1.0)
+            thresh = cv2.warpAffine(thresh, M, (w, h))
+            new_paper = cv2.warpAffine(new_paper, M, (w, h))
+            warped = cv2.warpAffine(warped, M, (w, h))
 
-		# box is at bottom of image
-		elif y - center[1] > 150:
-			# don't rotate the image
-			continue
+        # box is at bottom of image
+        elif y - center[1] > 150:
+            # don't rotate the image
+            continue
 
-		else:
-			print('where the heck is the box?')
+        else:
+            print('where the heck is the box?')
 
-	# If the contour isn't the box then it could be a well
-	# in order to label the contour as a well, region
-	# should be sufficiently wide, sufficiently tall, and
-	# have an aspect ratio approximately equal to 1
-	elif w >= 20 and h >= 20 and ar >= 0.9 and ar <= 1.1:
-		wellCnts.append(c)
-		cv2.drawContours(new_paper, [c], -1, (0,0,255), 3)
+cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
+                        cv2.CHAIN_APPROX_SIMPLE)
+cnts = imutils.grab_contours(cnts)
+wellCnts = []
+# loop over the contours
+for c in cnts:
+    # Find the contour that is the box (used to rotate paper if necessary)
+    # approximate the contour
+    peri = cv2.arcLength(c, True)
+    approx = cv2.approxPolyDP(c, 0.02 * peri, True)
+    # compute the bounding box of the contour, then use the
+    # bounding box to derive the aspect ratio
+    (x, y, w, h) = cv2.boundingRect(c)
+    ar = w / float(h)
+
+    # If the contour isn't the box then it could be a well
+    # in order to label the contour as a well, region
+    # should be sufficiently wide, sufficiently tall, and
+    # have an aspect ratio approximately equal to 1
+    if len(approx) != 4:
+        if w >= 20 and h >= 20 and 0.9 <= ar <= 1.1:
+            wellCnts.append(c)
+            cv2.drawContours(new_paper, [c], -1, (0, 0, 255), 3)
 
 print('Num circles found:', len(wellCnts))
 
@@ -180,4 +194,4 @@ cv2.imshow("New Paper", new_paper)
 cv2.waitKey(0)
 
 # Save images
-cv2.imwrite('images/pad4_result.png',new_paper)
+cv2.imwrite('images/pad4_result.png', new_paper)
