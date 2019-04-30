@@ -8,6 +8,7 @@ import numpy as np
 import argparse
 import imutils
 import cv2
+from utils import *
 
 # construct the argument parse and parse the arguments
 # ap = argparse.ArgumentParser()
@@ -191,10 +192,11 @@ for c in cnts:
 
 print('Num circles found:', len(wellCnts))
 
+cnts = sortContoursByXY(wellCnts)
 # loop over wellCnts and store intensities that belong to interior of the contour
 lst_intensities = []
 avg_intensities = []
-for i in range(len(wellCnts)):
+for i, cnt in enumerate(wellCnts):
     # Create a mask image that contains the contour filled in
     mask = np.zeros_like(warped)
     cv2.drawContours(mask, wellCnts, i, color=255, thickness=-1)
@@ -206,6 +208,9 @@ for i in range(len(wellCnts)):
     avg_intensities.append(np.mean(intensities))
     # mean = cv2.mean(warped, mask=cimg)
     # avg_intensities.append(mean)
+    cX, cY = getCenter(cnt)
+    cv2.putText(new_paper, str(np.mean(intensities)), (cX - 20, cY - 20),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
 print(avg_intensities)
 
