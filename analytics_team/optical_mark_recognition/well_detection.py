@@ -1,5 +1,5 @@
 # USAGE
-# python test_grader.py --image images/test_01.png
+# python well_detection.py
 
 # import the necessary packages
 from imutils.perspective import four_point_transform
@@ -166,7 +166,9 @@ cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
                         cv2.CHAIN_APPROX_SIMPLE)
 cnts = imutils.grab_contours(cnts)
 wellCnts = []
+colors = [(0, 0, 255), (0, 255, 0), (255, 0, 0), (0, 255, 255), (255, 0, 255)]
 # loop over the contours
+index = 0
 for c in cnts:
     # Find the contour that is the box (used to rotate paper if necessary)
     # approximate the contour
@@ -184,9 +186,28 @@ for c in cnts:
     if len(approx) != 4:
         if w >= 20 and h >= 20 and 0.9 <= ar <= 1.1:
             wellCnts.append(c)
-            cv2.drawContours(new_paper, [c], -1, (0, 0, 255), 3)
+            cv2.drawContours(new_paper, [c], -1, colors[index], 3)
+            index = index + 1
 
 print('Num circles found:', len(wellCnts))
+
+# loop over wellCnts and store intensities that belong to interior of the contour
+lst_intensities = []
+avg_intensities = []
+for i in range(len(wellCnts)):
+    # Create a mask image that contains the contour filled in
+    mask = np.zeros_like(warped)
+    cv2.drawContours(mask, wellCnts, i, color=255, thickness=-1)
+
+    # Access the image pixels and create a 1D numpy array then add to list
+    pts = np.where(mask == 255)
+    intensities = warped[pts[0], pts[1]]
+    lst_intensities.append(intensities)
+    avg_intensities.append(np.mean(intensities))
+    # mean = cv2.mean(warped, mask=cimg)
+    # avg_intensities.append(mean)
+
+print(avg_intensities)
 
 # For testing
 cv2.imshow("Old Paper", paper)
@@ -194,4 +215,4 @@ cv2.imshow("New Paper", new_paper)
 cv2.waitKey(0)
 
 # Save images
-cv2.imwrite('images/pad4_result.png', new_paper)
+# cv2.imwrite('images/pad4_result.png', new_paper)
